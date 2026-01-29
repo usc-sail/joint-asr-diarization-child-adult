@@ -24,8 +24,13 @@ from transformers import (
     get_linear_schedule_with_warmup,
     set_seed,
 )
+from huggingface_hub import PyTorchModelHubMixin
+from huggingface_hub import snapshot_download
 
-class WhisperWithDiarization(nn.Module):
+class WhisperWithDiarization(
+    nn.Module, 
+    PyTorchModelHubMixin
+):
     """
     Whisper model with CNN-based diarization head.
     """
@@ -252,7 +257,7 @@ class WhisperWithDiarization(nn.Module):
         # Use standard Whisper generation
         return self.whisper.generate(input_features, **kwargs)
     
-    def save_pretrained(self, save_directory):
+    def save_pretrained(self, save_directory, config=None, **kwargs):
         """Save both Whisper model and diarization head"""
         os.makedirs(save_directory, exist_ok=True)
         
@@ -275,26 +280,14 @@ class WhisperWithDiarization(nn.Module):
         torch.save(True, os.path.join(save_directory, 'has_diarization.pt'))
     
     @classmethod
-    def from_pretrained(cls, load_directory, whisper_model_class=WhisperForConditionalGeneration,
+    def from_pretrained(cls, repo_id, whisper_model_class=WhisperForConditionalGeneration,
                         num_diar_classes=3, hidden_dim=256, diar_loss_weight=1.0, 
-                        encoder_output_mode='last_hidden', gate_hidden_dim=256):
+                        encoder_output_mode='last_hidden', gate_hidden_dim=256, config=None):
         """Load both Whisper model and diarization head from fine-tuned checkpoint"""
         # Load Whisper model
-        whisper_model = whisper_model_class.from_pretrained(load_directory)
+        whisper_model = whisper_model_class.from_pretrained(repo_id)
         
-        # Check if diarization was used during training
-        has_diar_flag_path = os.path.join(load_directory, 'has_diarization.pt')
-        if os.path.exists(has_diar_flag_path):
-            has_diarization = torch.load(has_diar_flag_path)
-        else:
-            # Backward compatibility: assume diarization exists if diarization files are present
-            has_diarization = os.path.exists(os.path.join(load_directory, 'diarization_conv_layers.pt'))
-        
-        # If diarization was not used, set diar_loss_weight to 0 for consistency
-        if not has_diarization:
-            diar_loss_weight = 0.0
-        
-        
+        local_dir = snapshot_download(repo_id=repo_id)
         # Create model WITHOUT loading baseline diarization weights
         # We'll load the fine-tuned weights from load_directory instead
         model = cls(
@@ -306,13 +299,9 @@ class WhisperWithDiarization(nn.Module):
             load_pretrained_diarization=False,  # Don't load baseline weights!
         )
         
-        # Skip loading diarization components if not used
-        if not model.has_diarization:
-            return model
-        
         # Load diarization components
-        diar_conv_path = os.path.join(load_directory, 'diarization_conv_layers.pt')
-        diar_classifier_path = os.path.join(load_directory, 'diarization_classifier.pt')
+        diar_conv_path = os.path.join(local_dir, 'diarization_conv_layers.pt')
+        diar_classifier_path = os.path.join(local_dir, 'diarization_classifier.pt')
         
         model.diarization_conv_layers.load_state_dict(torch.load(diar_conv_path))
         

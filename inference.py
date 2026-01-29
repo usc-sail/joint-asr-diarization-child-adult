@@ -14,30 +14,6 @@ from structured_logits_processor import StructuredOutputLogitsProcessor
 from silence_masking_processor import SilenceMaskingProcessor
 from model import WhisperWithDiarization
 
-def load_model(model_path):
-    """Load the fine-tuned model and processor"""
-    print(f"Loading model from: {model_path}")
-    processor = WhisperProcessor.from_pretrained(model_path)
-    
-    # Check if this is a diarization model (check for new or old format)
-    diar_conv_layers_path = os.path.join(model_path, 'diarization_conv_layers.pt')
-    diar_head_path = os.path.join(model_path, 'diarization_head.pt')
-    
-    has_diarization = os.path.exists(diar_conv_layers_path) or os.path.exists(diar_head_path)
-    model = WhisperWithDiarization.from_pretrained(
-        model_path,
-        whisper_model_class=WhisperForConditionalGeneration,
-        encoder_output_mode='last_hidden'
-    )
-    
-    # Let the fine-tuned model use its learned behavior
-    model.whisper.config.forced_decoder_ids = None
-    model.whisper.config.suppress_tokens = []
-    
-    return model, processor, has_diarization
-
-
-
 
 def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.8):
     """
@@ -125,7 +101,7 @@ def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.8):
     return silence_segments
 
 
-def transcribe_audio(model, processor, audio_path, device='cpu', has_diarization=False, enable_silence_masking=True, enable_logits_processors=True, max_len=300):
+def transcribe_audio(model, processor, audio_path, device='cpu', enable_silence_masking=True, enable_logits_processors=True, max_len=300):
     """Transcribe audio and return speaker/timestamp tagged output"""
     # Load audio
     audio, sr = librosa.load(audio_path, sr=16000)
@@ -139,18 +115,12 @@ def transcribe_audio(model, processor, audio_path, device='cpu', has_diarization
     
     silence_segments = []
     
-    if has_diarization and enable_silence_masking:
-        # Use VAD to get silence segments with 0.8 threshold
+    if enable_silence_masking:
+        # Use VAD to get silence segments with 0.7 threshold
         silence_segments = get_vad_outputs(model, input_features, device, silence_threshold=0.7)
         
         # Filter silence segments to keep only those ≥1.0s
         silence_segments = [seg for seg in silence_segments if (seg['end'] - seg['start']) >= 1.0]
-        
-        
-        # if len(silence_segments) > 0:
-        #     print(f"  Found {len(silence_segments)} silence segments for masking:")
-        #     for seg in silence_segments:
-        #         print(f"    {seg['start']:.1f}s - {seg['end']:.1f}s (duration: {seg['end']-seg['start']:.1f}s)")
     
     # Get token IDs
     start_token_id = processor.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
@@ -231,6 +201,8 @@ def decode_with_timestamps(processor, token_ids):
 
 def main():
     parser = argparse.ArgumentParser(description='Batch Whisper inference for all Playlogue test sets')
+    parser.add_argument('wav_file', type=str,
+                        help='Path to wav file to transcribe')
     parser.add_argument('--model-path', type=str, 
                         default='/data1/anfengxu/whisper-ft-synthetic/playlogue_30s/preprocessed_openai-whisper-small-en/models_openai-whisper-small-en_5e-06lr_diarization_1.0_last_hidden_newdiarpre_0-01/best_model_diarization_header_opt/best_model/',
                         help='Path to fine-tuned model')
@@ -248,27 +220,21 @@ def main():
     print(f"Using device: {device}")
     
     # Load model
-    model, processor, has_diarization = load_model(args.model_path)
+    processor = WhisperProcessor.from_pretrained('AlexXu811/child-adult-joint-asr-diarization')
+    model = WhisperWithDiarization.from_pretrained('AlexXu811/child-adult-joint-asr-diarization')
+    print("=" * 60)
+    print("DIARIZATION MODEL DETECTED")
+    print(f"Silence masking: {'ENABLED' if args.enable_silence_masking else 'DISABLED'}")
+    print(f"Logits processors: {'ENABLED' if args.enable_logits_processors else 'DISABLED'}")
+    print("Will output both ASR transcripts and speaker diarization")
+    print("=" * 60)
     
-    if has_diarization:
-        print("=" * 60)
-        print("DIARIZATION MODEL DETECTED")
-        print(f"Silence masking: {'ENABLED' if args.enable_silence_masking else 'DISABLED'}")
-        print(f"Logits processors: {'ENABLED' if args.enable_logits_processors else 'DISABLED'}")
-        print("Will output both ASR transcripts and speaker diarization")
-        print("=" * 60)
     
-    # Process all test files
-    if "0.0" in args.model_path:
-        has_diarization = False  # Force no diarization for 0.0 models
-    
-    wav_file = "/data1/anfengxu/whisper-ft-synthetic/playlogue_30s/test/playlogue_ew_42pc_12007_001.wav"
     prediction = transcribe_audio(
         model,
         processor,
         wav_file,
         device,
-        has_diarization,
         args.enable_silence_masking,
         args.enable_logits_processors
     )
