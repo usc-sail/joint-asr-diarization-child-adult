@@ -1,5 +1,5 @@
 # Joint ASR/Diarization for child-adult interactions
-Inference code for the paper End-to-End Joint ASR and Speaker Role Diarization with Child-Adult Interactions.
+Inference code for the paper "End-to-End Joint ASR and Speaker Role Diarization with Child-Adult Interactions."
 
 Preprint: https://arxiv.org/abs/2601.17640.
 
