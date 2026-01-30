@@ -99,7 +99,7 @@ def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.7):
     return silence_segments
 
 
-def transcribe_audio(model, processor, audio_path, device='cpu', enable_silence_masking=True, enable_logits_processors=True, max_len=300):
+def transcribe_audio(model, processor, audio_path, device='cuda', enable_silence_masking=True, enable_logits_processors=True, max_len=300):
     """Transcribe audio and return speaker/timestamp tagged output"""
     # Load audio
     audio, sr = librosa.load(audio_path, sr=16000)
