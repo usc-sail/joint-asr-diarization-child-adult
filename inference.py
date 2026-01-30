@@ -6,16 +6,14 @@ Processes all test audio files and saves speaker and timestamp tagged transcript
 
 import torch
 import librosa
-import os
 import argparse
-from transformers import WhisperProcessor, WhisperForConditionalGeneration
-from transformers import LogitsProcessorList
+from transformers import WhisperProcessor, LogitsProcessorList
 from structured_logits_processor import StructuredOutputLogitsProcessor
 from silence_masking_processor import SilenceMaskingProcessor
 from model import WhisperWithDiarization
 
 
-def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.8):
+def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.7):
     """
     Get VAD (Voice Activity Detection) outputs from the model to detect silence segments.
     
@@ -23,7 +21,7 @@ def get_vad_outputs(model, input_features, device='cpu', silence_threshold=0.8):
         model: WhisperWithDiarization model
         input_features: Input mel spectrograms [B, n_mels, T]
         device: Device to run on
-        silence_threshold: Probability threshold for determining silence (default: 0.8)
+        silence_threshold: Probability threshold for determining silence (default: 0.7)
     
     Returns:
         silence_segments: List of silence segments with start/end times
@@ -201,11 +199,8 @@ def decode_with_timestamps(processor, token_ids):
 
 def main():
     parser = argparse.ArgumentParser(description='Batch Whisper inference for all Playlogue test sets')
-    parser.add_argument('wav_file', type=str,
+    parser.add_argument('--wav-file', type=str,
                         help='Path to wav file to transcribe')
-    parser.add_argument('--model-path', type=str, 
-                        default='/data1/anfengxu/whisper-ft-synthetic/playlogue_30s/preprocessed_openai-whisper-small-en/models_openai-whisper-small-en_5e-06lr_diarization_1.0_last_hidden_newdiarpre_0-01/best_model_diarization_header_opt/best_model/',
-                        help='Path to fine-tuned model')
     parser.add_argument('--device', type=str, default='auto',
                         help='Device: auto, cpu, or cuda')
     parser.add_argument('--disable-silence-masking', dest='enable_silence_masking', action='store_false', default=True,
@@ -233,7 +228,7 @@ def main():
     prediction = transcribe_audio(
         model,
         processor,
-        wav_file,
+        args.wav_file,
         device,
         args.enable_silence_masking,
         args.enable_logits_processors
