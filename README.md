@@ -8,6 +8,13 @@ Preprint: https://arxiv.org/abs/2601.17640.
 The model weights are released at https://huggingface.co/AlexXu811/child-adult-joint-asr-diarization.
 The released weights are trained on the public Playlogue dataset using Whisper-small.en. 
 
+## Set up the environment
+```
+conda create -n joint_asr_diar_child python==3.10
+conda activate joint_asr_diar_child
+pip install -r requirements.txt 
+```
+
 ## Example Inference Code
 Currently, it only supports WAV files up to 30 seconds due to Whisper's maximum audio input length limit. Please chunk your audio into chunks with <30s lengths (we might release the code to integrate this step in the future).
 
