@@ -1,0 +1,7 @@
+librosa==0.10.0.post2
+numpy==1.23.5
+torch==2.4.1
+torchaudio==2.4.1
+transformers==4.45.2
+huggingface-hub==0.26.2
+tqdm==4.65.0
