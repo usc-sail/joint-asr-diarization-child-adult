@@ -43,7 +43,8 @@ print(prediction.replace("<|startoftranscript|><|en|><|transcribe|>", "").strip(
 @article{xu2026end,
   title={End-to-End Joint ASR and Speaker Role Diarization with Child-Adult Interactions},
   author={Xu, Anfeng and Feng, Tiantian and Bishop, Somer and Lord, Catherine and Narayanan, Shrikanth},
-  journal={arXiv preprint arXiv:2601.17640},
-  year={2026}
+  journal={IEEE Transactions on Audio, Speech and Language Processing},
+  year={2026},
+  doi={10.1109/TASLPRO.2026.3707421}}
 }
 ```
